@@ -2,40 +2,47 @@ using Core.Interfaces;
 using Infrastructure.Data;
 using Microsoft.EntityFrameworkCore;
 
-namespace API;
+var builder = WebApplication.CreateBuilder(args);
 
-public static class Program
+// Add services to the container.
+builder.Services.AddControllers();
+// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddEndpointsApiExplorer();
+builder.Services.AddSwaggerGen();
+builder.Services.AddDbContext<StoreContext>(opt =>
 {
-  public static void Main(string[] args)
-  {
-    var builder = WebApplication.CreateBuilder(args);
+    opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
+});
 
-    // Add services to the container.
-    builder.Services.AddControllers();
-    // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
-    builder.Services.AddEndpointsApiExplorer();
-    builder.Services.AddSwaggerGen();
-    builder.Services.AddDbContext<StoreContext>(opt =>
-    {
-      opt.UseSqlite(builder.Configuration.GetConnectionString("DefaultConnection"));
-    });
+// Scoped means that the lifetime of the services finish once the class controller is not used
+builder.Services.AddScoped<IProductRepository, ProductRepository>();
 
-    // Scoped means that the lifetime of the services finish once the class controller is not used
-    builder.Services.AddScoped<IProductRepository, ProductRepository>();
+var app = builder.Build();
 
-    var app = builder.Build();
-
-    // Configure the HTTP request pipeline.
-    if (app.Environment.IsDevelopment())
-    {
-      app.UseSwagger();
-      app.UseSwaggerUI();
-    }
-
-    app.UseAuthorization();
-
-    app.MapControllers();
-
-    app.Run();
-  }
+// Configure the HTTP request pipeline.
+if (app.Environment.IsDevelopment())
+{
+    app.UseSwagger();
+    app.UseSwaggerUI();
 }
+
+app.UseAuthorization();
+
+app.MapControllers();
+
+using var scope = app.Services.CreateScope();
+var services = scope.ServiceProvider;
+var context = services.GetRequiredService<StoreContext>();
+var logger = services.GetRequiredService<ILogger<Program>>();
+
+try
+{
+    await context.Database.MigrateAsync();
+    await StoreContextSeed.SeedAsync(context);
+}
+catch (Exception ex)
+{
+    logger.LogError(ex, "An error occurred during migration");
+}
+
+app.Run();
