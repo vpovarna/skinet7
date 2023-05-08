@@ -14,7 +14,7 @@ public static class ApplicationServicesExtensions
         services.AddEndpointsApiExplorer();
         services.AddSwaggerGen();
         services.AddDbContext<StoreContext>(opt => { opt.UseSqlite(config.GetConnectionString("DefaultConnection")); });
-        
+
         // Scoped means that the lifetime of the services finish once the class controller is not used
         services.AddScoped(typeof(IGenericRepository<>), typeof(GenericRepository<>));
         services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
@@ -35,6 +35,16 @@ public static class ApplicationServicesExtensions
                 return new BadRequestObjectResult(errorResponse);
             };
         });
+
+        services.AddCors(opt =>
+            opt.AddPolicy("CorsPolicy", policy =>
+            {
+                policy
+                    .AllowAnyHeader()
+                    .AllowAnyMethod()
+                    .WithOrigins("https://localhost:4200");
+            })
+        );
         return services;
     }
 }
